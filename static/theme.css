@@ -1,0 +1,15 @@
+:root { 
+    --primary: #000000;
+}
+
+body,
+input,
+select,
+textarea,
+body * {
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    color: var(--primary);
+}
