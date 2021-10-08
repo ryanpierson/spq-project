@@ -5,17 +5,32 @@ const app = express();
 app.use(express.static('static'));
 app.use(express.static('dist'));
 
+const {Datastore} = require('@google-cloud/datastore');
+const datastore = new Datastore();
+
 app.get('/', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/index.html'));
-})
+});
 
-// app.get('/', (req, res) => {
-//     let dict = {};
-// 
-//     dict['testkey'] = 'testvalue';
-// 
-//     res.json(dict);
-// })
+
+// following along with google tutorials
+const getTasks = () => {
+    const query = datastore
+        .createQuery('Task')
+        .limit(10);
+
+        return datastore.runQuery(query);
+};
+
+app.get('/dbtest', async (req, res, next) => {
+    try {
+        const [entities] = await getVisits();
+        console.log(entities);
+        res.json(entities);
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Start the server
 const PORT = process.env.PORT || 8080;
