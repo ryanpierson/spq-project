@@ -24,7 +24,7 @@ const getTasks = () => {
 
 app.get('/dbtest', async (req, res, next) => {
     try {
-        const [entities] = await getVisits();
+        const [entities] = await getTasks();
         console.log(entities);
         res.json(entities);
     } catch (error) {
