@@ -35,7 +35,7 @@ app.get('/dbtest', async (req, res, next) => {
 // Start the server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Express app listening on port ${PORT}`);
+    console.log(`Express app listening on port ${PORT}`);
 });
 
 module.exports = app;
