@@ -2,7 +2,6 @@ const bodyParser = require('body-parser');
 const express = require('express');
 const path = require('path');
 const fetch = require('node-fetch');
-// import fetch from 'node-fetch';
 
 const app = express();
 
@@ -22,22 +21,24 @@ app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
 });
 
 app.post('/employer/:employerId/quiz/:quizId', (req, res) => {
-    console.log("POST");
     for (const [questionId, submittedAnswer] of Object.entries(req.body)) {
-        console.log(`${questionId}: ${submittedAnswer}`);
         fetch(`http://192.168.33.10:8080/question/${questionId}`)
         .then(res => res.json())
         .then(
             (result) => {
-                console.log(result);
+                // compare submittedAnswer to correct answer in result
+                // autograde what is possible then 
+                let answer = {
+                    'submitted': submittedAnswer,
+                    'result': result
+                };
+                console.log(answer);
             },
             (error) => {
                 // handle error
             }
-        )
+        );
     }
-    
-    
     
     res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
 });
@@ -96,7 +97,7 @@ app.get('/question/:questionId', (req, res) => {
     let question = null;
     
     switch (req.params.questionId) {
-        case 1:
+        case '1':
             question = {
                 'id': '1',
                 'type': 1,
@@ -105,7 +106,7 @@ app.get('/question/:questionId', (req, res) => {
                 'answer': true
             };
             break;
-        case 2:
+        case '2':
             question = {
                 'id': '2',
                 'type': 2,
@@ -127,7 +128,7 @@ app.get('/question/:questionId', (req, res) => {
                 ]
             };
             break;
-        case 3:
+        case '3':
             question = {
                 'id': '3',
                 'type': 4,
@@ -140,7 +141,7 @@ app.get('/question/:questionId', (req, res) => {
             question = null;
     }
     
-    return question;
+    res.json(question);
 });
 
 
