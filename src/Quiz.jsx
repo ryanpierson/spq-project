@@ -43,7 +43,7 @@ export default class Quiz extends React.Component {
                     error: error
                 });
             }
-        )
+        );
     }
     
     render() {
