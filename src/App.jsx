@@ -1,4 +1,5 @@
 import React from 'react';
+import Quiz from './Quiz.jsx';
 
 export default class App extends React.Component {
     constructor(props) {
@@ -7,7 +8,6 @@ export default class App extends React.Component {
     }
     
     render() {
-        
         return (
             <React.Fragment>
                 <div>{this.config.test}</div>
