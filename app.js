@@ -21,24 +21,43 @@ app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
 });
 
 app.post('/employer/:employerId/quiz/:quizId', (req, res) => {
+    let promises = [];
+    
     for (const [questionId, submittedAnswer] of Object.entries(req.body)) {
-        fetch(`http://192.168.33.10:8080/question/${questionId}`)
-        .then(res => res.json())
-        .then(
-            (result) => {
-                // compare submittedAnswer to correct answer in result
-                // autograde what is possible then 
-                let answer = {
-                    'submitted': submittedAnswer,
-                    'result': result
-                };
-                console.log(answer);
-            },
-            (error) => {
-                // handle error
-            }
-        );
+        let questionRequest = new Promise((resolve, reject) => {
+            fetch(`http://192.168.33.10:8080/question/${questionId}`)
+            .then(res => /*res.json()*/ throw new Error('test'))
+            .then(
+                (result) => {
+                    // compare submittedAnswer to correct answer in result
+                    // autograde what is possible then 
+                    let answer = {
+                        'submitted': submittedAnswer,
+                        'result': result
+                    };
+                    resolve(answer);
+                },
+                (error) => {
+                    let answer = {};
+                    reject(answer);
+                }
+            );
+        });
+        
+        promises.push(questionRequest);
     }
+    
+    Promise.all(promises).then(function(values) {
+        // store submitted answers and whatever was autograded
+        // send email to employer that candidate has submitted the quiz
+        // include link to freeform evaluating interface if applicable
+        
+        console.log("success");
+        console.log(values);
+    }).catch(function(values) {
+        console.log('catch');
+        console.log(values);
+    });
     
     res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
 });
