@@ -79,7 +79,6 @@ export default class Quiz extends React.Component {
                             <input type="submit" value="Submit" />
                         </div>
                     </form>
-                    <div>{this.config.test}</div>
                 </React.Fragment>
             );
         }
