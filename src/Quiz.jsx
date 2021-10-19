@@ -1,4 +1,5 @@
 import React from 'react';
+import CheckAllThatApply from './CheckAllThatApply.jsx';
 import FreeForm from './FreeForm.jsx';
 import MultipleChoice from './MultipleChoice.jsx';
 import TrueFalse from './TrueFalse.jsx';
@@ -61,6 +62,9 @@ export default class Quiz extends React.Component {
                         break;
                     case 2:
                         question_component = <MultipleChoice key={question.id} config={this.config} question={question} />;
+                        break;
+                    case 3:
+                        question_component = <CheckAllThatApply key={question.id} config={this.config} question={question} />;
                         break;
                     case 4:
                         question_component = <FreeForm key={question.id} config={this.config} question={question} />;
