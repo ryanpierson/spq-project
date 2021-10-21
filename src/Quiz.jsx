@@ -80,7 +80,11 @@ export default class Quiz extends React.Component {
                     <form method="post">
                         <div>{questions}</div>
                         <div>
-                            <input type="submit" value="Submit" />
+                        <label for="candidateName">Enter your name:</label>
+                        <input type="text" id="candidateName" name="candidateName" size="30" minlength="3" maxlength="64" required />
+                        <label for="email">Enter your email address:</label>
+                        <input type="email" id="email" name="email" size="30" minlength="3" maxlength="64" required />
+                        <input type="submit" value="Submit" />
                         </div>
                     </form>
                 </React.Fragment>

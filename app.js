@@ -12,18 +12,13 @@ app.use(bodyParser.urlencoded({extended: true}));
 const {Datastore} = require('@google-cloud/datastore');
 const datastore = new Datastore();
 
-app.get('/', (req, res) => {
-    res.status(200).sendFile(path.resolve(__dirname, 'view/index.html'));
-});
-
-app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
-    res.status(200).sendFile(path.resolve(__dirname, 'view/quiz.html'));
-});
-
-function condenseSubmission(body) {
+const condenseSubmission = (body) => {
     let submission = {};
     
     for (const [questionId, submittedAnswer] of Object.entries(body)) {
+        if (questionId === 'email') {
+            continue;
+        }
         if (questionId.includes('-')) {
             let idIndex = questionId.split('-');
             if (submission[idIndex[0]]) {
@@ -39,8 +34,9 @@ function condenseSubmission(body) {
     return submission;
 }
 
-function handleSubmission(body, result) {
+const handleSubmission = (body, result) => {
     let submission = condenseSubmission(body);
+    let hasFreeForm = false;
     
     for (let i = 0; i < result['question'].length; ++i) {
         result['question'][i].credit = 0;
@@ -49,7 +45,6 @@ function handleSubmission(body, result) {
         let type = result['question'][i].type;
         let storedAnswers = result['question'][i].answer;
         
-        let hasFreeForm = false;
         switch (type) {
             case 1: // true or false
                 let submittedAnswer = false;
@@ -92,7 +87,7 @@ function handleSubmission(body, result) {
                     }
                 }
                 
-                result['question'][i].credit = (correctCount / possiblePoints) * result['question'][i].points;
+                result['question'][i].credit = Math.max(((correctCount / possiblePoints) * result['question'][i].points), 0);
                 result['question'][i].submission = submission[id];
                 break;
             case 4:
@@ -104,77 +99,121 @@ function handleSubmission(body, result) {
     
     return {
         'result': result,
-        'hasFreeForm': hasFreeForm
+        'hasFreeForm': hasFreeForm,
+        'email': body.email,
+        'name': body.name
     };
 }
+
+app.get('/', (req, res) => {
+    res.status(200).sendFile(path.resolve(__dirname, 'view/index.html'));
+});
+
+app.get('/candidate/:candidateId', (req, res, next) => {
+    let candidate = {
+        'id': '1',
+        'name': 'Test Candidate',
+        'email': 'testcandidate@example.com',
+        'quizzes': []
+    };
+    res.status(200).json(candidate);
+});
+
+app.get('/candidate/:candidateId/quiz/:quizId', (req, res) => {
+    res.status(200).sendFile(path.resolve(__dirname, 'view/evaluate.html'));
+});
+
+app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
+    res.status(200).sendFile(path.resolve(__dirname, 'view/quiz.html'));
+});
 
 app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
     fetch(`http://192.168.33.10:8080/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
-            
             let quizData = handleSubmission(req.body, quizResult);
-            
             fetch(`http://192.168.33.10:8080/employer/${req.params.employerId}`)
             .then(employerRes => employerRes.json())
             .then(
                 (employerResult) => {
-                    console.log(employerResult);
+                    // check if candidate exists
+                    // if exists, update quiz listings to include quizData
+                    // insert quizData for candidate
+                    let candidateEmail = quizData.email.toLowerCase();
+                    
+                    const query = datastore.createQuery('Candidate').filter('email', '=', candidateEmail).limit(1);
+                    datastore.runQuery(query).then((result) => {
+                        let [candidates] = result;
+                        if (candidates.length) {
+                            let [candidate] = candidates;
+                            
+                            // parse candidate's previous quizzes and add to the array
+                            let candidateQuizzes = JSON.parse(candidate.quizzes);
+                            
+                            if (candidateQuizzes.length > 10) {
+                                candidateQuizzes = []; // preventing large blobs
+                            }
+                            
+                            candidateQuizzes.push(quizData);
+                            // overwrite old value with new value
+                            candidate.quizzes = JSON.stringify(candidateQuizzes);
+                            
+                            const existingCandidateKey = datastore.key('Candidate');
+
+                            let existingCandidateEntity = {
+                                key: existingCandidateKey,
+                                data: candidate,
+                            };
+                            
+                            datastore.update(existingCandidateEntity).then(
+                                (updateSuccess) => {
+                                    // Task updated successfully.
+                                },
+                                (updateError) => {
+                                    next(updateError);
+                                }
+                            );
+                        } else {
+                            const newCandidateKey = datastore.key('Candidate');
+                            let newCandidate = {
+                                'name': quizData.name,
+                                'email': candidateEmail,
+                                'quizzes': JSON.stringify([quizData])
+                            };
+
+                            let newCandidateEntity = {
+                                key: newCandidateKey,
+                                data: newCandidate,
+                            };
+                            
+                            datastore.insert(newCandidateEntity).then(
+                                (insertSuccess) => {
+                                    // Task inserted successfully.
+                                },
+                                (insertError) => {
+                                    next(insertError);
+                                }
+                            );
+                        }
+                    });
+                    
+                    // console.log(employerResult);
                     // send email to employer that candidate has submitted the quiz
                     // include link to freeform evaluating interface if applicable (quizData.hasFreeForm)
+                    if (quizData.hasFreeForm) {
+                        // let evaluate_link = `http://192.168.33.10:8080/candidate/${candidateId}/quiz/${req.params.employerId}`;
+                    }
                 },
                 (employerError) => {
                     next(employerError);
                 }
             );
-            // check if candidate exists
-            // if exists, update quiz listings to include quizData
-            // insert quizData for candidate
         },
         (quizError) => {
             next(quizError);
         }
     );
-    
-    
-    // let promises = [];
-    // 
-    // for (const [questionId, submittedAnswer] of Object.entries(req.body)) {
-    //     let questionRequest = new Promise((resolve, reject) => {
-    //         fetch(`http://192.168.33.10:8080/question/${questionId}`)
-    //         .then(res => res.json())
-    //         .then(
-    //             (result) => {
-    //                 // compare submittedAnswer to correct answer in result
-    //                 // autograde what is possible then 
-    //                 let answer = {
-    //                     'submitted': submittedAnswer,
-    //                     'result': result
-    //                 };
-    //                 resolve(answer);
-    //             },
-    //             (error) => {
-    //                 let answer = {};
-    //                 reject(answer);
-    //             }
-    //         );
-    //     });
-    // 
-    //     promises.push(questionRequest);
-    // }
-    // 
-    // Promise.all(promises).then(function(values) {
-    //     // store submitted answers and whatever was autograded
-    //     // send email to employer that candidate has submitted the quiz
-    //     // include link to freeform evaluating interface if applicable
-    // 
-    //     console.log("success");
-    //     console.log(values);
-    // }).catch(function(values) {
-    //     console.log('error');
-    //     console.log(values);
-    // });
     
     res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
 });
