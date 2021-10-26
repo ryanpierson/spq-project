@@ -303,12 +303,12 @@ app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
 
 // handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
-    fetch(`${config.siteHost}/quiz/${req.params.quizId}`)
+    fetch(`/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
             let quizData = handleSubmission(req.body, quizResult);
-            fetch(`${config.siteHost}/employer/${req.params.employerId}`)
+            fetch(`/employer/${req.params.employerId}`)
             .then(employerRes => employerRes.json())
             .then(
                 (employerResult) => {
@@ -354,6 +354,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.update(existingCandidateEntity).then(
                                 (updateSuccess) => {
                                     // Candidate updated successfully.
+                                    res.status(200).send("Success");
                                 },
                                 (updateError) => {
                                     next(updateError);
@@ -379,6 +380,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.insert(newCandidateEntity).then(
                                 (insertSuccess) => {
                                     // Candidate inserted successfully.
+                                    res.status(200).send("Success");
                                 },
                                 (insertError) => {
                                     next(insertError);
