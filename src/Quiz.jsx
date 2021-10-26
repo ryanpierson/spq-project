@@ -29,7 +29,7 @@ export default class Quiz extends React.Component {
             });
         }
         
-        fetch(`http://192.168.33.10:8080/quiz/${quizId}`)
+        fetch(`/quiz/${quizId}`)
         .then(res => res.json())
         .then(
             (result) => {
