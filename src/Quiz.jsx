@@ -1,4 +1,5 @@
 import React from 'react';
+import CheckAllThatApply from './CheckAllThatApply.jsx';
 import FreeForm from './FreeForm.jsx';
 import MultipleChoice from './MultipleChoice.jsx';
 import TrueFalse from './TrueFalse.jsx';
@@ -62,6 +63,9 @@ export default class Quiz extends React.Component {
                     case 2:
                         question_component = <MultipleChoice key={question.id} config={this.config} question={question} />;
                         break;
+                    case 3:
+                        question_component = <CheckAllThatApply key={question.id} config={this.config} question={question} />;
+                        break;
                     case 4:
                         question_component = <FreeForm key={question.id} config={this.config} question={question} />;
                         break;
@@ -76,7 +80,11 @@ export default class Quiz extends React.Component {
                     <form method="post">
                         <div>{questions}</div>
                         <div>
-                            <input type="submit" value="Submit" />
+                        <label for="candidateName">Enter your name:</label>
+                        <input type="text" id="candidateName" name="candidateName" size="30" minlength="3" maxlength="64" required />
+                        <label for="email">Enter your email address:</label>
+                        <input type="email" id="email" name="email" size="30" minlength="3" maxlength="64" required />
+                        <input type="submit" value="Submit" />
                         </div>
                     </form>
                 </React.Fragment>
