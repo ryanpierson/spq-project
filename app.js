@@ -1,13 +1,16 @@
+const config = require('./config/config');
 const bodyParser = require('body-parser');
 const express = require('express');
 const path = require('path');
 const fetch = require('node-fetch');
+const mailgun = require('mailgun-js')({apiKey: config.mailgunApiKey, domain: config.mailgunDomain});
 
 const app = express();
 
 app.use(express.static('static'));
 app.use(express.static('dist'));
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(express.json());
 
 const {Datastore} = require('@google-cloud/datastore');
 const datastore = new Datastore();
@@ -97,6 +100,17 @@ const handleSubmission = (body, result) => {
         }
     }
     
+    let totalCredit = 0;
+    let possiblePoints = 0;
+    
+    for (let i = 0; i < result['question'].length; ++i) {
+        totalCredit += result['question'][i].credit;
+        possiblePoints += result['question'][i].points;
+    }
+    
+    result.credit = totalCredit;
+    result.points = possiblePoints;
+    
     return {
         'result': result,
         'hasFreeForm': hasFreeForm,
@@ -105,35 +119,196 @@ const handleSubmission = (body, result) => {
     };
 }
 
+const sendEmail = (employer, quiz, candidate) => {
+    let emailBody = `${employer.name}, ${quiz.name} ${quiz.email} has submitted a quiz.`;
+    
+    if (quiz.hasFreeForm) {
+        let evaluateLink = `${config.siteHost}/candidate/${candidate.id}/quiz/${quiz.id}`;
+        emailBody += ` Visit this link to evaluate their free form responses: ${evaluateLink}`;
+    }
+
+    let emailData = {
+        from: 'Software Programming Quiz <me@samples.mailgun.org>',
+        to: employer.email,
+        subject: 'Quiz submission',
+        text: emailBody
+    };
+    
+    mailgun.messages().send(emailData, (emailError, emailResponse) => {
+        if (emailError) {
+            next(emailError);
+        } else {
+            // Email sent successfully.
+            console.log(emailResponse);
+        }
+    });
+}
+
 app.get('/', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/index.html'));
 });
 
+// get candidate
 app.get('/candidate/:candidateId', (req, res, next) => {
-    let candidate = {
-        'id': '1',
-        'name': 'Test Candidate',
-        'email': 'testcandidate@example.com',
-        'quizzes': []
-    };
-    res.status(200).json(candidate);
+    const key = datastore.key(['Candidate', parseInt(req.params.candidateId)]);
+    datastore.get(key).then(
+        (result) => {
+            let [candidate] = result;
+            res.status(200).json(candidate);
+        },
+        (error) => {
+            next(error);
+        }
+    );
 });
 
+
+// get candidate ids for an employer
+app.get('/employercandidates/:employerId', (req, res, next) => {
+    const query = datastore.createQuery('Employer').filter('employerId', '=', req.params.employerId).limit(1);
+    datastore.runQuery(query).then((result) => {
+        let [employers] = result;
+        if (employers.length) {
+            let [employer] = employers;
+            let candidates = [];
+            try {
+                candidates = JSON.parse(employer.candidates);
+            } catch (error) {
+            }
+            res.status(200).json(candidates);
+        } else {
+            res.status(404).json({error: `Invalid employer ID: ${req.params.employerId}`});
+        }
+    });
+});
+
+// add candidate ids to an employer
+app.post('/employercandidates/:employerId', (req, res, next) => {
+    let candidateEmails = req.body;
+    let promises = [];
+    
+    for (let i = 0; i < candidateEmails.length; ++i) {
+        let candidateInsert = new Promise((resolve, reject) => {
+            const query = datastore.createQuery('Candidate').filter('email', '=', candidateEmails[i]).limit(1);
+            datastore.runQuery(query).then((result) => {
+                let [candidates] = result;
+                
+                if (candidates.length) {
+                    let [candidate] = candidates;
+                    
+                    // this is the candidate id
+                    resolve(candidate[datastore.KEY].id);
+                } else {
+                    const newCandidateKey = datastore.key('Candidate');
+                    
+                    let newCandidate = {
+                        'name': '',
+                        'email': query.filters[0].val,
+                        'quizzes': ''
+                    };
+                    
+                    let newCandidateEntity = {
+                        key: newCandidateKey,
+                        excludeFromIndexes: ["quizzes"],
+                        data: newCandidate,
+                    };
+                    
+                    datastore.insert(newCandidateEntity).then(
+                        (insertSuccess) => {
+                            // Candidate inserted successfully.
+                            resolve(newCandidateKey.id);
+                        },
+                        (insertError) => {
+                            reject(insertError);
+                        }
+                    );
+                }
+            });
+        });
+        
+        promises.push(candidateInsert);
+    } 
+     
+    Promise.all(promises).then((values) => {
+        const employerQuery = datastore.createQuery('Employer').filter('employerId', '=', req.params.employerId).limit(1);
+        datastore.runQuery(employerQuery).then((result) => {
+            let [employers] = result;
+            if (employers.length) {
+                let [employer] = employers;
+                
+                let candidates = [];
+                try {
+                    candidates = JSON.parse(employer.candidates);
+                } catch (error) {
+                }
+                
+                employer.candidates = candidates.concat(values.filter((value) => candidates.indexOf(value) < 0));
+                employer.candidates = JSON.stringify(employer.candidates);
+                
+                const employerKey = datastore.key(['Employer', parseInt(employer[datastore.KEY].id)]);
+        
+                let employerEntity = {
+                    key: employerKey,
+                    data: employer,
+                };
+        
+                datastore.update(employerEntity).then(
+                    (updateSuccess) => {
+                        // Employer updated successfully.
+                        res.status(200).send("Success");
+                    },
+                    (updateError) => {
+                        next(updateError);
+                    }
+                );
+            } else {
+                const newEmployerKey = datastore.key('Employer');
+                
+                let newEmployer = {
+                    'candidates': JSON.stringify(values),
+                    'employerId': req.params.employerId
+                };
+                
+                let newEmployerEntity = {
+                    key: newEmployerKey,
+                    excludeFromIndexes: ["candidates"],
+                    data: newEmployer,
+                };
+                
+                datastore.insert(newEmployerEntity).then(
+                    (insertSuccess) => {
+                        // Employer inserted successfully.
+                        res.status(200).send("Success");
+                    },
+                    (insertError) => {
+                        next(insertError);
+                    }
+                );
+            }
+        });
+    }).catch((error) => {
+        next(error);
+    });
+});
+
+// send evaluation html
 app.get('/candidate/:candidateId/quiz/:quizId', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/evaluate.html'));
 });
 
+// send quiz html
 app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/quiz.html'));
 });
 
+// handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
-    fetch(`http://192.168.33.10:8080/quiz/${req.params.quizId}`)
+    fetch(`${config.siteHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
             let quizData = handleSubmission(req.body, quizResult);
-            fetch(`http://192.168.33.10:8080/employer/${req.params.employerId}`)
+            fetch(`${config.siteHost}/employer/${req.params.employerId}`)
             .then(employerRes => employerRes.json())
             .then(
                 (employerResult) => {
@@ -147,28 +322,36 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                         let [candidates] = result;
                         if (candidates.length) {
                             let [candidate] = candidates;
-                            
+                    
                             // parse candidate's previous quizzes and add to the array
-                            let candidateQuizzes = JSON.parse(candidate.quizzes);
+                            let candidateQuizzes = [];
+                            try {
+                                let candidateQuizzes = JSON.parse(candidate.quizzes);
+                            } catch (error) {
+                            }
                             
+                    
                             if (candidateQuizzes.length > 10) {
                                 candidateQuizzes = []; // preventing large blobs
                             }
-                            
+                    
                             candidateQuizzes.push(quizData);
                             // overwrite old value with new value
                             candidate.quizzes = JSON.stringify(candidateQuizzes);
-                            
-                            const existingCandidateKey = datastore.key('Candidate');
-
+                    
+                            const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
+                    
                             let existingCandidateEntity = {
                                 key: existingCandidateKey,
+                                excludeFromIndexes: ["quizzes"],
                                 data: candidate,
                             };
                             
+                            // sendEmail(employerResult, quizData, candidate);
+                    
                             datastore.update(existingCandidateEntity).then(
                                 (updateSuccess) => {
-                                    // Task updated successfully.
+                                    // Candidate updated successfully.
                                 },
                                 (updateError) => {
                                     next(updateError);
@@ -181,15 +364,18 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                                 'email': candidateEmail,
                                 'quizzes': JSON.stringify([quizData])
                             };
-
+                    
                             let newCandidateEntity = {
                                 key: newCandidateKey,
+                                excludeFromIndexes: ["quizzes"],
                                 data: newCandidate,
                             };
                             
+                            // sendEmail(employerResult, quizData, newCandidate);
+                    
                             datastore.insert(newCandidateEntity).then(
                                 (insertSuccess) => {
-                                    // Task inserted successfully.
+                                    // Candidate inserted successfully.
                                 },
                                 (insertError) => {
                                     next(insertError);
@@ -197,13 +383,6 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             );
                         }
                     });
-                    
-                    // console.log(employerResult);
-                    // send email to employer that candidate has submitted the quiz
-                    // include link to freeform evaluating interface if applicable (quizData.hasFreeForm)
-                    if (quizData.hasFreeForm) {
-                        // let evaluate_link = `http://192.168.33.10:8080/candidate/${candidateId}/quiz/${req.params.employerId}`;
-                    }
                 },
                 (employerError) => {
                     next(employerError);
@@ -218,16 +397,18 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
 });
 
+// mock endpoint
 app.get('/employer/:employerId', (req, res) => {
     let employer = {
         'id': 1,
         'name': 'Test Employer',
-        'email': 'test@gmail.com',
+        'email': 'osuspqtest@gmail.com',
         'quiz': []
     };
     res.json(employer);
 });
 
+// mock endpoint
 app.get('/quiz/:quizId', (req, res) => {
     let trueFalse = {
         'id': '1',
@@ -299,6 +480,7 @@ app.get('/quiz/:quizId', (req, res) => {
     res.json(quiz);
 });
 
+// mock question endpoint
 app.get('/question/:questionId', (req, res) => {
     let question = null;
     
@@ -371,26 +553,6 @@ app.get('/question/:questionId', (req, res) => {
     
     res.json(question);
 });
-
-
-// following along with google tutorials
-// const getTasks = () => {
-//     const query = datastore
-//         .createQuery('Task')
-//         .limit(10);
-// 
-//         return datastore.runQuery(query);
-// };
-// 
-// app.get('/dbtest', async (req, res, next) => {
-//     try {
-//         const [entities] = await getTasks();
-//         console.log(entities);
-//         res.json(entities);
-//     } catch (error) {
-//         next(error);
-//     }
-// });
 
 app.use((error, req, res, next) => {
     console.log(error);
