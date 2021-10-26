@@ -316,12 +316,15 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                     // if exists, update quiz listings to include quizData
                     // insert quizData for candidate
                     let candidateEmail = quizData.email.toLowerCase();
+                    let candidateName = quizData.name;
                     
                     const query = datastore.createQuery('Candidate').filter('email', '=', candidateEmail).limit(1);
                     datastore.runQuery(query).then((result) => {
                         let [candidates] = result;
                         if (candidates.length) {
                             let [candidate] = candidates;
+                            
+                            candidate.name = candidateName;
                     
                             // parse candidate's previous quizzes and add to the array
                             let candidateQuizzes = [];
@@ -329,7 +332,6 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                                 let candidateQuizzes = JSON.parse(candidate.quizzes);
                             } catch (error) {
                             }
-                            
                     
                             if (candidateQuizzes.length > 10) {
                                 candidateQuizzes = []; // preventing large blobs
@@ -362,6 +364,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             let newCandidate = {
                                 'name': quizData.name,
                                 'email': candidateEmail,
+                                'name': candidateName,
                                 'quizzes': JSON.stringify([quizData])
                             };
                     
