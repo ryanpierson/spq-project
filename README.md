@@ -1,25 +1,11 @@
 # API Reference
 
-### Get a candidate
-Get a candidate's email, name, and quiz submissions by candidate id:
-
-`GET /candidate/:candidateId`
-
-Response:
-```json
-{
-    "email": "testemail@test.com",
-    "name": "",
-    "quizzes": ""
-}
-```
-
 ### Get a candidate by candidate id
 Get a candidate's email, name, and quiz submissions by candidate id:
 
 `GET /candidate/:candidateId`
 
-Response:
+The response is JSON with email, name, and json encoded quiz results:
 ```json
 {
     "email": "testemail@test.com",
@@ -33,7 +19,7 @@ Get a list of candidate ids for candidates who have been sent a quiz by the empl
 
 `GET /employercandidates/:employerId`
 
-Response:
+The response is a json array of candidate ids:
 ```json
 [
     "5151130757627904",
