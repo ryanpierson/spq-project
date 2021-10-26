@@ -354,6 +354,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.update(existingCandidateEntity).then(
                                 (updateSuccess) => {
                                     // Candidate updated successfully.
+                                    res.status(200).send("Success");
                                 },
                                 (updateError) => {
                                     next(updateError);
@@ -379,6 +380,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.insert(newCandidateEntity).then(
                                 (insertSuccess) => {
                                     // Candidate inserted successfully.
+                                    res.status(200).send("Success");
                                 },
                                 (insertError) => {
                                     next(insertError);
