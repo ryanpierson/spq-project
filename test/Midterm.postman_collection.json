@@ -1,0 +1,182 @@
+{
+	"info": {
+		"_postman_id": "7a81247e-6c9e-4c7b-9d0d-4ac84fd2c4a0",
+		"name": "Midterm",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Post employercandidates",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "[\"test1@test.com\",\"test2@test.com\",\"test3@test.com\"]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://adroit-marking-328200.uc.r.appspot.com/employercandidates/1",
+					"protocol": "https",
+					"host": [
+						"adroit-marking-328200",
+						"uc",
+						"r",
+						"appspot",
+						"com"
+					],
+					"path": [
+						"employercandidates",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get employercandidates",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://adroit-marking-328200.uc.r.appspot.com/employercandidates/1",
+					"protocol": "https",
+					"host": [
+						"adroit-marking-328200",
+						"uc",
+						"r",
+						"appspot",
+						"com"
+					],
+					"path": [
+						"employercandidates",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get candidate",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://adroit-marking-328200.uc.r.appspot.com/candidate/5765243099676672",
+					"protocol": "https",
+					"host": [
+						"adroit-marking-328200",
+						"uc",
+						"r",
+						"appspot",
+						"com"
+					],
+					"path": [
+						"candidate",
+						"5765243099676672"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get quiz",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://adroit-marking-328200.uc.r.appspot.com/employer/1/quiz/1",
+					"protocol": "https",
+					"host": [
+						"adroit-marking-328200",
+						"uc",
+						"r",
+						"appspot",
+						"com"
+					],
+					"path": [
+						"employer",
+						"1",
+						"quiz",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Submit quiz Copy",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "1",
+							"value": "true",
+							"type": "text"
+						},
+						{
+							"key": "2",
+							"value": "Blue",
+							"type": "text"
+						},
+						{
+							"key": "3-0",
+							"value": "5",
+							"type": "text"
+						},
+						{
+							"key": "3-1",
+							"value": "10",
+							"type": "text"
+						},
+						{
+							"key": "3-2",
+							"value": "15",
+							"type": "text"
+						},
+						{
+							"key": "4",
+							"value": "Free form response",
+							"type": "text"
+						},
+						{
+							"key": "email",
+							"value": "test2@test.com",
+							"type": "text"
+						},
+						{
+							"key": "name",
+							"value": "Second Tester",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://adroit-marking-328200.uc.r.appspot.com/employer/1/quiz/1",
+					"protocol": "https",
+					"host": [
+						"adroit-marking-328200",
+						"uc",
+						"r",
+						"appspot",
+						"com"
+					],
+					"path": [
+						"employer",
+						"1",
+						"quiz",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
