@@ -303,12 +303,12 @@ app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
 
 // handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
-    fetch(`/quiz/${req.params.quizId}`)
+    fetch(`${config.siteHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
             let quizData = handleSubmission(req.body, quizResult);
-            fetch(`/employer/${req.params.employerId}`)
+            fetch(`${config.siteHost}/employer/${req.params.employerId}`)
             .then(employerRes => employerRes.json())
             .then(
                 (employerResult) => {
@@ -354,7 +354,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.update(existingCandidateEntity).then(
                                 (updateSuccess) => {
                                     // Candidate updated successfully.
-                                    res.status(200).send("Success");
+                                    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
                                 },
                                 (updateError) => {
                                     next(updateError);
@@ -380,7 +380,7 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
                             datastore.insert(newCandidateEntity).then(
                                 (insertSuccess) => {
                                     // Candidate inserted successfully.
-                                    res.status(200).send("Success");
+                                    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
                                 },
                                 (insertError) => {
                                     next(insertError);
@@ -398,8 +398,6 @@ app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
             next(quizError);
         }
     );
-    
-    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
 });
 
 // mock endpoint
