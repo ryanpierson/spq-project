@@ -1,0 +1,62 @@
+.quiz {
+    display: flex;
+    flex-direction: column;
+}
+
+.quizTitle {
+    margin: 1rem 0 0 2rem;
+}
+
+.timer {
+    margin: 2rem 0 0 2rem;
+}
+
+.timer h2 {
+    display: inline;
+}
+
+.timerLabel {
+    margin-right: 1em;
+}
+
+.submitBtn {
+    margin-left: 2rem;
+}
+
+.submitBtn > input {
+    min-width: 10rem;
+    min-height: 3rem;
+}
+
+.questions {
+    margin: 1rem;
+}
+
+.questions > div {
+    margin: 1rem;
+}
+
+.checkAllThatApply,
+.multipleChoice,
+.trueFalse {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.trueFalse > label > input,
+.checkAllThatApply > label > input,
+.multipleChoice > label > input {
+    margin-right: 1rem;
+}
+
+.freeForm > textarea {
+    width: 100%;
+    height: 5rem;
+    display: block;
+}
+.nameContainer > input {
+    display: block;
+    width: 100%;
+    max-width: 30rem;
+}

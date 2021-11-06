@@ -17,14 +17,14 @@ export default class MultipleChoice extends React.Component {
             let choices = this.question.answer.map((choice, index) => {
                 return (
                     <label key={index}>
-                        {choice.Answer}
-                        <input type="radio" name={this.question.id} value={choice.Answer} />
+                        <input type="radio" name={this.question.id} value={choice.answer} />
+                        {choice.answer}
                     </label>
                 )
             });
             
             return (
-                <div>
+                <div className="multipleChoice">
                     {this.question.question}
                     {choices}
                 </div>

@@ -15,15 +15,15 @@ export default class TrueFalse extends React.Component {
             return <div>Error: {error.message}</div>;
         } else {
             return (
-                <div>
+                <div className="trueFalse">
                     {this.question.question}
                     <label>
-                        True
                         <input type="radio" name={this.question.id} value="true" />
+                        True
                     </label>
                     <label>
-                        False
                         <input type="radio" name={this.question.id} value="false" />
+                        False
                     </label>
                 </div>
             );
