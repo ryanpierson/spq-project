@@ -39,6 +39,15 @@ The post body should be a raw json array of email addresses for each candidate:
 ["test1@test.com","test2@test.com","test3@test.com"]
 ```
 
+The response is a json array of candidate ids keyed by the candidate's email:
+```
+{
+    "test1@test.com": "5670392840585216",
+    "test2@test.com": "5748214695198720",
+    "test3@test.com": "5672878150254592"
+}
+```
+
 ### Get quiz html
 This is currently using the mock endpoints below.
 Valid employer id = 1

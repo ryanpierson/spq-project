@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default class TrueFalse extends React.Component {
+export default class Submit extends React.Component {
     constructor(props) {
         super(props);
         this.config = props.config;
@@ -15,8 +15,8 @@ export default class TrueFalse extends React.Component {
             return <div>Error: {error.message}</div>;
         } else {
             return (
-                <div>
-                    <input type="submit" value="Submit">
+                <div className="submitBtn">
+                    <input type="submit" value="Submit"></input>
                 </div>
             );
         }

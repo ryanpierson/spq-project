@@ -19,7 +19,7 @@ const condenseSubmission = (body) => {
     let submission = {};
     
     for (const [questionId, submittedAnswer] of Object.entries(body)) {
-        if (questionId === 'email') {
+        if (questionId === 'email' || questionId === 'name') {
             continue;
         }
         if (questionId.includes('-')) {
@@ -61,7 +61,7 @@ const handleSubmission = (body, result) => {
                 break;
             case 2: // multiple choice
                 for (let j = 0; j < storedAnswers.length; ++j) {
-                    if (submission[id] === storedAnswers[j].Answer && storedAnswers[j].Correct === true) {
+                    if (submission[id] === storedAnswers[j].answer && storedAnswers[j].correct === true) {
                         result['question'][i].credit = result['question'][i].points;
                     }
                 }
@@ -72,7 +72,7 @@ const handleSubmission = (body, result) => {
                 for (let j = 0; j < submission[id].length; ++j) {
                     let answerCorrect = false;
                     for (let k = 0; k < storedAnswers.length; ++k) {
-                        if (submission[id][j] === storedAnswers[k].Answer && storedAnswers[k].Correct === true) {
+                        if (submission[id][j] === storedAnswers[k].answer && storedAnswers[k].correct === true) {
                             answerCorrect = true;
                         }
                     }
@@ -85,7 +85,7 @@ const handleSubmission = (body, result) => {
                 
                 let possiblePoints = 0;
                 for (let k = 0; k < storedAnswers.length; ++k) {
-                    if (storedAnswers[k].Correct === true) {
+                    if (storedAnswers[k].correct === true) {
                         ++possiblePoints;
                     }
                 }
@@ -114,29 +114,32 @@ const handleSubmission = (body, result) => {
     return {
         'result': result,
         'hasFreeForm': hasFreeForm,
-        'email': body.email,
-        'name': body.name
+        'name': body.candidateName
     };
 }
 
-const sendEmail = (employer, quiz, candidate) => {
-    let emailBody = `${employer.name}, ${quiz.name} ${quiz.email} has submitted a quiz.`;
+const sendEmail = (employerName, candidateName, candidateEmail, candidateId, quizId, hasFreeForm) => {
+    let emailBody = `${employerName}, ${candidateName} ${candidateEmail} has submitted a quiz.`;
     
-    if (quiz.hasFreeForm) {
-        let evaluateLink = `${config.siteHost}/candidate/${candidate.id}/quiz/${quiz.id}`;
+    if (hasFreeForm) {
+        let evaluateLink = `${config.siteHost}/candidate/${candidateId}/quiz/${quizId}`;
         emailBody += ` Visit this link to evaluate their free form responses: ${evaluateLink}`;
     }
+    
+    let testEmail = 'osuspqtest@gmail.com';
+    
 
     let emailData = {
         from: 'Software Programming Quiz <me@samples.mailgun.org>',
-        to: employer.email,
+        // to: employer.email,
+        to: testEmail,
         subject: 'Quiz submission',
         text: emailBody
     };
     
     mailgun.messages().send(emailData, (emailError, emailResponse) => {
         if (emailError) {
-            next(emailError);
+            throw emailError;
         } else {
             // Email sent successfully.
             console.log(emailResponse);
@@ -146,6 +149,55 @@ const sendEmail = (employer, quiz, candidate) => {
 
 app.get('/', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/index.html'));
+});
+
+// get timer for candidate
+app.get('/timer/:candidateId', (req, res, next) => {
+    const query = datastore.createQuery('Timer').filter('candidateId', '=', req.params.candidateId).limit(1);
+    datastore.runQuery(query).then((result) => {
+        let [timers] = result;
+        if (timers.length) {
+            let [timer] = timers;
+            res.status(200).send(timer.timer.toString());
+        } else {
+            // no timer for candidate
+            res.status(404).send("No timer for candidate.");
+        }
+    });
+});
+
+// start timer for candidate
+app.post('/timer/:candidateId', (req, res, next) => {
+    const query = datastore.createQuery('Timer').filter('candidateId', '=', req.params.candidateId).limit(1);
+    datastore.runQuery(query).then((result) => {
+        let [timer] = result;
+        if (timer.length) {
+            res.status(200).send("Timer already started.");
+        } else {
+            // no timer for candidate
+            const newTimerKey = datastore.key('Timer');
+            
+            let newTimer = {
+                'candidateId': req.params.candidateId,
+                'timer': Date.now()
+            };
+            
+            let newTimerEntity = {
+                key: newTimerKey,
+                data: newTimer,
+            };
+            
+            datastore.insert(newTimerEntity).then(
+                (insertSuccess) => {
+                    // Timer inserted successfully.
+                    res.status(200).send("Success");
+                },
+                (insertError) => {
+                    next(insertError);
+                }
+            );
+        }
+    });
 });
 
 // get candidate
@@ -161,7 +213,6 @@ app.get('/candidate/:candidateId', (req, res, next) => {
         }
     );
 });
-
 
 // get candidate ids for an employer
 app.get('/employercandidates/:employerId', (req, res, next) => {
@@ -197,13 +248,14 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                     let [candidate] = candidates;
                     
                     // this is the candidate id
-                    resolve(candidate[datastore.KEY].id);
+                    let candidateInfo = {};
+                    candidateInfo[candidateEmails[i]] = candidate[datastore.KEY].id;
+                    resolve(candidateInfo);
                 } else {
                     const newCandidateKey = datastore.key('Candidate');
                     
                     let newCandidate = {
                         'name': '',
-                        'email': query.filters[0].val,
                         'quizzes': ''
                     };
                     
@@ -216,7 +268,9 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                     datastore.insert(newCandidateEntity).then(
                         (insertSuccess) => {
                             // Candidate inserted successfully.
-                            resolve(newCandidateKey.id);
+                            let candidateInfo = {};
+                            candidateInfo[candidateEmails[i]] = newCandidateKey.id;
+                            resolve(candidateInfo);
                         },
                         (insertError) => {
                             reject(insertError);
@@ -242,7 +296,7 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                 } catch (error) {
                 }
                 
-                employer.candidates = candidates.concat(values.filter((value) => candidates.indexOf(value) < 0));
+                employer.candidates = candidates.concat(Object.values(values).filter((value) => candidates.indexOf(value) < 0));
                 employer.candidates = JSON.stringify(employer.candidates);
                 
                 const employerKey = datastore.key(['Employer', parseInt(employer[datastore.KEY].id)]);
@@ -255,7 +309,8 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                 datastore.update(employerEntity).then(
                     (updateSuccess) => {
                         // Employer updated successfully.
-                        res.status(200).send("Success");
+                        let returnData = Object.assign(...values);
+                        res.status(200).json(returnData);
                     },
                     (updateError) => {
                         next(updateError);
@@ -265,7 +320,7 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                 const newEmployerKey = datastore.key('Employer');
                 
                 let newEmployer = {
-                    'candidates': JSON.stringify(values),
+                    'candidates': JSON.stringify(Object.values(values)),
                     'employerId': req.params.employerId
                 };
                 
@@ -278,7 +333,8 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                 datastore.insert(newEmployerEntity).then(
                     (insertSuccess) => {
                         // Employer inserted successfully.
-                        res.status(200).send("Success");
+                        let returnData = Object.assign(...values);
+                        res.status(200).json(returnData);
                     },
                     (insertError) => {
                         next(insertError);
@@ -297,100 +353,118 @@ app.get('/candidate/:candidateId/quiz/:quizId', (req, res) => {
 });
 
 // send quiz html
-app.get('/employer/:employerId/quiz/:quizId', (req, res) => {
+app.get('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res) => {
     res.status(200).sendFile(path.resolve(__dirname, 'view/quiz.html'));
 });
 
 // handle quiz submission
-app.post('/employer/:employerId/quiz/:quizId', (req, res, next) => {
+app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res, next) => {
     fetch(`${config.siteHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
-            let quizData = handleSubmission(req.body, quizResult);
-            fetch(`${config.siteHost}/employer/${req.params.employerId}`)
-            .then(employerRes => employerRes.json())
-            .then(
-                (employerResult) => {
-                    // check if candidate exists
-                    // if exists, update quiz listings to include quizData
-                    // insert quizData for candidate
-                    let candidateEmail = quizData.email.toLowerCase();
-                    let candidateName = quizData.name;
-                    
-                    const query = datastore.createQuery('Candidate').filter('email', '=', candidateEmail).limit(1);
-                    datastore.runQuery(query).then((result) => {
-                        let [candidates] = result;
-                        if (candidates.length) {
-                            let [candidate] = candidates;
-                            
-                            candidate.name = candidateName;
-                    
-                            // parse candidate's previous quizzes and add to the array
-                            let candidateQuizzes = [];
-                            try {
-                                let candidateQuizzes = JSON.parse(candidate.quizzes);
-                            } catch (error) {
-                            }
-                    
-                            if (candidateQuizzes.length > 10) {
-                                candidateQuizzes = []; // preventing large blobs
-                            }
-                    
-                            candidateQuizzes.push(quizData);
-                            // overwrite old value with new value
-                            candidate.quizzes = JSON.stringify(candidateQuizzes);
-                    
-                            const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
-                    
-                            let existingCandidateEntity = {
-                                key: existingCandidateKey,
-                                excludeFromIndexes: ["quizzes"],
-                                data: candidate,
-                            };
-                            
-                            // sendEmail(employerResult, quizData, candidate);
-                    
-                            datastore.update(existingCandidateEntity).then(
-                                (updateSuccess) => {
-                                    // Candidate updated successfully.
-                                    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
+            const findTimerQuery = datastore.createQuery('Timer').filter('candidateId', '=', req.params.candidateId).limit(1);
+            datastore.runQuery(findTimerQuery).then(
+                (findTimerResult) => {
+                    let [timers] = findTimerResult;
+                    if (timers.length) {
+                        let [timer] = timers;
+                        let quizData = handleSubmission(req.body, quizResult);
+                        fetch(`${config.siteHost}/employer/${req.params.employerId}`)
+                            .then(employerRes => employerRes.json())
+                            .then(
+                                (employerResult) => {
+                                    // check if candidate exists
+                                    // if exists, update quiz listings to include quizData
+                                    // insert quizData for candidate
+                                    let candidateName = quizData.name;
+                                    
+                                    const candidateKey = datastore.key(['Candidate', parseInt(req.params.candidateId)]);
+                                    
+                                    const candidateQuery = datastore.createQuery('Candidate').filter('__key__', '=', candidateKey).limit(1);
+                                    datastore.runQuery(candidateQuery).then((candidateResult) => {
+                                        let [candidates] = candidateResult;
+                                        if (candidates.length) {
+                                            let [candidate] = candidates;
+                                            
+                                            candidate.name = candidateName;
+                                            
+                                            let timeLimit = quizData.result.timeLimit * 60 * 1000; // quiz time limit in milliseconds
+                                            let timeElapsed = Date.now() - timer.timer;
+                                            
+                                            if (timeElapsed < timeLimit) {
+                                                quizData.result.onTime = true;
+                                            } else {
+                                                quizData.result.onTime = false;
+                                            }
+                                            
+                                            // delete timer
+                                            const timerQuery = datastore.createQuery('Timer').filter('candidateId', '=', req.params.candidateId).limit(1);
+                                            datastore.runQuery(timerQuery).then((timerResult) => {
+                                                let [timers] = timerResult;
+                                                if (timers.length) {
+                                                    let [timer] = timers;
+                                                    let timerKey = datastore.key(['Timer', parseInt(timer[datastore.KEY].id)]);
+                                                    datastore.delete(timerKey);
+                                                    
+                                                    // parse candidate's previous quizzes and add to the array
+                                                    let candidateQuizzes = [];
+                                                    try {
+                                                        candidateQuizzes = JSON.parse(candidate.quizzes);
+                                                    } catch (error) {
+                                                    }
+                                            
+                                                    if (candidateQuizzes.length > 10) {
+                                                        candidateQuizzes = []; // preventing large blobs
+                                                    }
+                                                    
+                                                    candidateQuizzes.push(quizData);
+                                                    // overwrite old value with new value
+                                                    candidate.quizzes = JSON.stringify(candidateQuizzes);
+                                            
+                                                    const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
+                                            
+                                                    let existingCandidateEntity = {
+                                                        key: existingCandidateKey,
+                                                        excludeFromIndexes: ['quizzes'],
+                                                        data: candidate,
+                                                    };
+                                                    
+                                                    try {
+                                                        // sendEmail(employerResult.name, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
+                                                    } catch (mailError) {
+                                                        next(mailError);
+                                                    }
+                                                    
+                                                    datastore.update(existingCandidateEntity).then(
+                                                        (updateSuccess) => {
+                                                            // Candidate updated successfully.
+                                                            res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
+                                                        },
+                                                        (updateError) => {
+                                                            next(updateError);
+                                                        }
+                                                    );
+                                                } else {
+                                                    res.status(404).send(`Invalid submission, there is no timer set for candidate ${req.params.candidateId}`);
+                                                }
+                                            });
+                                        } else {
+                                            res.status(404).send("Candidate does not exist.");
+                                        }
+                                    });
                                 },
-                                (updateError) => {
-                                    next(updateError);
+                                (employerError) => {
+                                    next(employerError);
                                 }
                             );
-                        } else {
-                            const newCandidateKey = datastore.key('Candidate');
-                            let newCandidate = {
-                                'name': quizData.name,
-                                'email': candidateEmail,
-                                'name': candidateName,
-                                'quizzes': JSON.stringify([quizData])
-                            };
-                    
-                            let newCandidateEntity = {
-                                key: newCandidateKey,
-                                excludeFromIndexes: ["quizzes"],
-                                data: newCandidate,
-                            };
-                            
-                            // sendEmail(employerResult, quizData, newCandidate);
-                    
-                            datastore.insert(newCandidateEntity).then(
-                                (insertSuccess) => {
-                                    // Candidate inserted successfully.
-                                    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
-                                },
-                                (insertError) => {
-                                    next(insertError);
-                                }
-                            );
-                        }
-                    });
+                    } else {
+                        // no timer for candidate
+                        res.status(404).send(`Invalid submission, there is no timer set for candidate ${req.params.candidateId}`);
+                    }
                 },
-                (employerError) => {
-                    next(employerError);
+                (findTimerError) => {
+                    next(findTimerError);
                 }
             );
         },
@@ -413,148 +487,71 @@ app.get('/employer/:employerId', (req, res) => {
 
 // mock endpoint
 app.get('/quiz/:quizId', (req, res) => {
-    let trueFalse = {
-        'id': '1',
-        'type': 1,
-        'points': 5,
-        'question': 'Water is wet?',
-        'answer': true
-    };
-    
-    let multipleChoice = {
-        'id': '2',
-        'type': 2,
-        'points': 6,
-        'question': 'Which color?',
-        'answer':  [
-            {
-                'Answer': 'Blue',
-                'Correct': true
-            },
-            {
-                'Answer': 'Green',
-                'Correct': false
-            },
-            {
-                'Answer': 'Red',
-                'Correct': false
-            }
-        ]
-    };
-    
-    let checkAllThatApply = {
-        'id': '3',
-        'type': 3,
-        'points': 6,
-        'question': 'How many?',
-        'answer':  [
-            {
-                'Answer': '5',
-                'Correct': true
-            },
-            {
-                'Answer': '10',
-                'Correct': true
-            },
-            {
-                'Answer': '15',
-                'Correct': false
-            }
-        ]
-    };
-    
-    let freeForm = {
-        'id': '4',
-        'type': 4,
-        'points': 7,
-        'question': 'What is?',
-        'answer': null
-    };
-    
-    let questions = [trueFalse, multipleChoice, checkAllThatApply, freeForm];
-    
     let quiz = {
-        'id': req.params.quizId,
-        'employee': '1',
-        'time-limit': 60,
-        'question': questions
+        "id": "5763672618041344",
+        "employee": "5639966621171712",
+        "timeLimit": 1,
+        "question": [
+            {
+                "type": 1,
+                "answer": true,
+                "question": "Is 2 + 2 equal to 4?",
+                "id": "6202916574593024",
+                "points": 5,
+                "self": "https://cs467quizcreation.wl.r.appspot.com/question/6202916574593024"
+            },
+            {
+                "points": 5,
+                "type": 2,
+                "id": "5632418417475584",
+                "answer": [
+                    {
+                        "answer": "4",
+                        "correct": true
+                    },
+                    {
+                        "answer": "1",
+                        "correct": false
+                    }
+                ],
+                "self": "https://cs467quizcreation.wl.r.appspot.com/question/5632418417475584",
+                "question": "What is 2 + 2?"
+            },
+            {
+                "type": 3,
+                "points": 5,
+                "self": "https://cs467quizcreation.wl.r.appspot.com/question/5721280955285504",
+                "id": "5721280955285504",
+                "question": "Is math cool?",
+                "answer": [
+                    {
+                        "correct": true,
+                        "answer": "yes"
+                    },
+                    {
+                        "correct": true,
+                        "answer": "it's ok"
+                    },
+                    {
+                        "correct": false,
+                        "answer": "no"
+                    }
+                ]
+            },
+            {
+                "id": "5157873420075008",
+                "type": 4,
+                "points": 5,
+                "self": "https://cs467quizcreation.wl.r.appspot.com/question/5157873420075008",
+                "question": "Is math cool?",
+                "answer": null
+            }
+        ],
+        "title": "Test Quiz",
+        "self": "https://cs467quizcreation.wl.r.appspot.com/quiz/5763672618041344"
     };
     
     res.json(quiz);
-});
-
-// mock question endpoint
-app.get('/question/:questionId', (req, res) => {
-    let question = null;
-    
-    switch (req.params.questionId) {
-        case '1':
-            question = {
-                'id': '1',
-                'type': 1,
-                'points': 5,
-                'question': 'Water is wet?',
-                'answer': true
-            };
-            break;
-        case '2':
-            question = {
-                'id': '2',
-                'type': 2,
-                'points': 6,
-                'question': 'Which color?',
-                'answer':  [
-                    {
-                        'Answer': 'Blue',
-                        'Correct': true
-                    },
-                    {
-                        'Answer': 'Green',
-                        'Correct': false
-                    },
-                    {
-                        'Answer': 'Red',
-                        'Correct': false
-                    }
-                ]
-            };
-            break;
-        case '3':
-            question = {
-                'id': '3',
-                'type': 3,
-                'points': 6,
-                'question': 'How many?',
-                'answer':  [
-                    {
-                        'Answer': '5',
-                        'Correct': true
-                    },
-                    {
-                        'Answer': '10',
-                        'Correct': true
-                    },
-                    {
-                        'Answer': '15',
-                        'Correct': false
-                    }
-                ]
-            };
-            break;
-        case '4':
-            question = {
-                'id': '4',
-                'type': 4,
-                'points': 7,
-                'question': 'What is?',
-                'answer': null
-            };
-            break;
-        default:
-            question = null;
-    }
-    
-    res.json(question);
 });
 
 app.use((error, req, res, next) => {

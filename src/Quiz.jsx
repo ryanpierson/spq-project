@@ -3,6 +3,9 @@ import CheckAllThatApply from './CheckAllThatApply.jsx';
 import FreeForm from './FreeForm.jsx';
 import MultipleChoice from './MultipleChoice.jsx';
 import TrueFalse from './TrueFalse.jsx';
+import Submit from './Submit.jsx';
+import Submitted from './Submitted.jsx';
+import Timer from './Timer.jsx';
 
 export default class Quiz extends React.Component {
     constructor(props) {
@@ -29,31 +32,99 @@ export default class Quiz extends React.Component {
             });
         }
         
-        fetch(`/quiz/${quizId}`)
-        .then(res => res.json())
-        .then(
-            (result) => {
-                this.setState({
-                    isLoaded: true,
-                    quiz: result
-                });
-            },
-            (error) => {
-                this.setState({
-                    isLoaded: true,
-                    error: error
-                });
+        let candidateId = 0;
+        let pathName = new URL(window.location.href).pathname;
+        let pathArr = pathName.split('/');
+        for (let pathIndex = 0; pathIndex < pathArr.length; ++pathIndex) {
+            if (pathArr[pathIndex] === 'candidate') {
+                candidateId = pathArr[pathIndex + 1];
             }
-        );
+        }
+        
+        try {
+            if (candidateId === 0) {
+                throw new Error('Invalid URL, invalid candidate id.');
+            }
+        } catch (error) {
+            this.setState({
+                isLoaded: true,
+                error: error
+            });
+        }
+        
+        fetch(`/candidate/${candidateId}`)
+            .then(res => res.json())
+            .then(
+                (result) => {
+                    if (result.quizzes) {
+                        let decodedQuizzes = JSON.parse(result.quizzes);
+                        if (decodedQuizzes) {
+                            for (let quiz of decodedQuizzes) {
+                                if (parseInt(quiz.result.id) == parseInt(quizId)) {
+                                    // quiz already submitted
+                                    this.setState({
+                                        alreadySubmitted: true,
+                                        isLoaded: true,
+                                        result: quiz.result,
+                                        hasFreeForm: quiz.hasFreeForm
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    fetch(`${this.config.foreignHost}/quiz/${quizId}`)
+                        .then(res => res.json())
+                        .then(
+                            (result) => {
+                                this.setState({
+                                    isLoaded: true,
+                                    quiz: result
+                                });
+                            },
+                            (error) => {
+                                this.setState({
+                                    isLoaded: true,
+                                    error: error
+                                });
+                            }
+                        );
+                    
+                    // start timer
+                    fetch(`/timer/${candidateId}`, {method: "POST", body: null})
+                        .then(
+                            (result) => {
+                            },
+                            (error) => {
+                                this.state.error = "Invalid timer"
+                            }
+                        );
+                },
+                (error) => {
+                    this.setState({
+                        isLoaded: true,
+                        error: error
+                    });
+                }
+            );
+        
+        
     }
     
     render() {
         if (this.state.error) {
-            return <div>Error: {error.message}</div>;
+            return <div>Error: {this.state.error}</div>;
         } else if (!this.state.isLoaded) {
             return <div>Loading</div>;
+        } else if (this.state.alreadySubmitted) {
+            return (
+                <React.Fragment>
+                    <h1 className="quizTitle">{this.state.quiz.title}</h1>
+                    <Submitted config={this.config} result={this.state.result} hasFreeForm={this.state.hasFreeForm} />
+                </React.Fragment>
+            );
         } else {
-            let questions = this.state.quiz.question.map(question => {
+            let questions = this.state.quiz.question.map((question) => {
                 let question_component = null;
                 
                 switch(question.type) {
@@ -75,17 +146,19 @@ export default class Quiz extends React.Component {
                 
                 return question_component;
             });
+            questions.push(
+                <div key="nameInput" className="nameContainer">
+                    <label htmlFor="candidateName">Enter your name:</label>
+                    <input type="text" id="candidateName" name="candidateName" minLength="1" maxLength="64" required />
+                </div>
+            )
             return (
                 <React.Fragment>
-                    <form method="post">
-                        <div>{questions}</div>
-                        <div>
-                        <label for="candidateName">Enter your name:</label>
-                        <input type="text" id="candidateName" name="candidateName" size="30" minlength="3" maxlength="64" required />
-                        <label for="email">Enter your email address:</label>
-                        <input type="email" id="email" name="email" size="30" minlength="3" maxlength="64" required />
-                        <input type="submit" value="Submit" />
-                        </div>
+                    <h1 className="quizTitle">{this.state.quiz.title}</h1>
+                    <Timer config={this.config} timer={this.state.quiz.timeLimit} />
+                    <form method="post" className="quiz">
+                        <div className="questions">{questions}</div>
+                        <Submit key="submitBtn" config={this.config} />
                     </form>
                 </React.Fragment>
             );
