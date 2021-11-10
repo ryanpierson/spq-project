@@ -61,7 +61,7 @@ const handleSubmission = (body, result) => {
                 break;
             case 2: // multiple choice
                 for (let j = 0; j < storedAnswers.length; ++j) {
-                    if (submission[id] === storedAnswers[j].Answer && storedAnswers[j].correct === true) {
+                    if (submission[id] === storedAnswers[j].answer && storedAnswers[j].correct === true) {
                         result['question'][i].credit = result['question'][i].points;
                     }
                 }
@@ -72,7 +72,7 @@ const handleSubmission = (body, result) => {
                 for (let j = 0; j < submission[id].length; ++j) {
                     let answerCorrect = false;
                     for (let k = 0; k < storedAnswers.length; ++k) {
-                        if (submission[id][j] === storedAnswers[k].Answer && storedAnswers[k].correct === true) {
+                        if (submission[id][j] === storedAnswers[k].answer && storedAnswers[k].correct === true) {
                             answerCorrect = true;
                         }
                     }
@@ -118,12 +118,11 @@ const handleSubmission = (body, result) => {
     };
 }
 
-const sendEmail = (employer, quiz, candidate) => {
-    return;
-    let emailBody = `${employer.name}, ${quiz.name} ${quiz.email} has submitted a quiz.`;
+const sendEmail = (employerName, candidateName, candidateEmail, candidateId, quizId, hasFreeForm) => {
+    let emailBody = `${employerName}, ${candidateName} ${candidateEmail} has submitted a quiz.`;
     
-    if (quiz.hasFreeForm) {
-        let evaluateLink = `${config.siteHost}/candidate/${candidate.id}/quiz/${quiz.id}`;
+    if (hasFreeForm) {
+        let evaluateLink = `${config.siteHost}/candidate/${candidateId}/quiz/${quizId}`;
         emailBody += ` Visit this link to evaluate their free form responses: ${evaluateLink}`;
     }
     
@@ -214,7 +213,6 @@ app.get('/candidate/:candidateId', (req, res, next) => {
         }
     );
 });
-
 
 // get candidate ids for an employer
 app.get('/employercandidates/:employerId', (req, res, next) => {
@@ -408,49 +406,49 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                                                     let [timer] = timers;
                                                     let timerKey = datastore.key(['Timer', parseInt(timer[datastore.KEY].id)]);
                                                     datastore.delete(timerKey);
+                                                    
+                                                    // parse candidate's previous quizzes and add to the array
+                                                    let candidateQuizzes = [];
+                                                    try {
+                                                        candidateQuizzes = JSON.parse(candidate.quizzes);
+                                                    } catch (error) {
+                                                    }
+                                            
+                                                    if (candidateQuizzes.length > 10) {
+                                                        candidateQuizzes = []; // preventing large blobs
+                                                    }
+                                                    
+                                                    candidateQuizzes.push(quizData);
+                                                    // overwrite old value with new value
+                                                    candidate.quizzes = JSON.stringify(candidateQuizzes);
+                                            
+                                                    const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
+                                            
+                                                    let existingCandidateEntity = {
+                                                        key: existingCandidateKey,
+                                                        excludeFromIndexes: ['quizzes'],
+                                                        data: candidate,
+                                                    };
+                                                    
+                                                    try {
+                                                        // sendEmail(employerResult.name, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
+                                                    } catch (mailError) {
+                                                        next(mailError);
+                                                    }
+                                                    
+                                                    datastore.update(existingCandidateEntity).then(
+                                                        (updateSuccess) => {
+                                                            // Candidate updated successfully.
+                                                            res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
+                                                        },
+                                                        (updateError) => {
+                                                            next(updateError);
+                                                        }
+                                                    );
                                                 } else {
                                                     res.status(404).send(`Invalid submission, there is no timer set for candidate ${req.params.candidateId}`);
                                                 }
                                             });
-                                            
-                                            // parse candidate's previous quizzes and add to the array
-                                            let candidateQuizzes = [];
-                                            try {
-                                                candidateQuizzes = JSON.parse(candidate.quizzes);
-                                            } catch (error) {
-                                            }
-                                    
-                                            if (candidateQuizzes.length > 10) {
-                                                candidateQuizzes = []; // preventing large blobs
-                                            }
-                                            
-                                            candidateQuizzes.push(quizData);
-                                            // overwrite old value with new value
-                                            candidate.quizzes = JSON.stringify(candidateQuizzes);
-                                    
-                                            const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
-                                    
-                                            let existingCandidateEntity = {
-                                                key: existingCandidateKey,
-                                                excludeFromIndexes: ['quizzes'],
-                                                data: candidate,
-                                            };
-                                            
-                                            try {
-                                                sendEmail(employerResult, quizData, candidate);
-                                            } catch (mailError) {
-                                                next(mailError);
-                                            }
-                                            
-                                            datastore.update(existingCandidateEntity).then(
-                                                (updateSuccess) => {
-                                                    // Candidate updated successfully.
-                                                    res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
-                                                },
-                                                (updateError) => {
-                                                    next(updateError);
-                                                }
-                                            );
                                         } else {
                                             res.status(404).send("Candidate does not exist.");
                                         }

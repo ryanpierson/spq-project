@@ -4,6 +4,7 @@ import FreeForm from './FreeForm.jsx';
 import MultipleChoice from './MultipleChoice.jsx';
 import TrueFalse from './TrueFalse.jsx';
 import Submit from './Submit.jsx';
+import Submitted from './Submitted.jsx';
 import Timer from './Timer.jsx';
 
 export default class Quiz extends React.Component {
@@ -31,23 +32,6 @@ export default class Quiz extends React.Component {
             });
         }
         
-        fetch(`/quiz/${quizId}`)
-            .then(res => res.json())
-            .then(
-                (result) => {
-                    this.setState({
-                        isLoaded: true,
-                        quiz: result
-                    });
-                },
-                (error) => {
-                    this.setState({
-                        isLoaded: true,
-                        error: error
-                    });
-                }
-            );
-        
         let candidateId = 0;
         let pathName = new URL(window.location.href).pathname;
         let pathArr = pathName.split('/');
@@ -57,15 +41,74 @@ export default class Quiz extends React.Component {
             }
         }
         
-        // start timer
-        fetch(`/timer/${candidateId}`, {method: "POST", body: null})
+        try {
+            if (candidateId === 0) {
+                throw new Error('Invalid URL, invalid candidate id.');
+            }
+        } catch (error) {
+            this.setState({
+                isLoaded: true,
+                error: error
+            });
+        }
+        
+        fetch(`/candidate/${candidateId}`)
+            .then(res => res.json())
             .then(
                 (result) => {
+                    if (result.quizzes) {
+                        let decodedQuizzes = JSON.parse(result.quizzes);
+                        if (decodedQuizzes) {
+                            for (let quiz of decodedQuizzes) {
+                                if (parseInt(quiz.result.id) == parseInt(quizId)) {
+                                    // quiz already submitted
+                                    this.setState({
+                                        alreadySubmitted: true,
+                                        isLoaded: true,
+                                        result: quiz.result,
+                                        hasFreeForm: quiz.hasFreeForm
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    fetch(`${this.config.foreignHost}/quiz/${quizId}`)
+                        .then(res => res.json())
+                        .then(
+                            (result) => {
+                                this.setState({
+                                    isLoaded: true,
+                                    quiz: result
+                                });
+                            },
+                            (error) => {
+                                this.setState({
+                                    isLoaded: true,
+                                    error: error
+                                });
+                            }
+                        );
+                    
+                    // start timer
+                    fetch(`/timer/${candidateId}`, {method: "POST", body: null})
+                        .then(
+                            (result) => {
+                            },
+                            (error) => {
+                                this.state.error = "Invalid timer"
+                            }
+                        );
                 },
                 (error) => {
-                    this.state.error = "Invalid timer"
+                    this.setState({
+                        isLoaded: true,
+                        error: error
+                    });
                 }
             );
+        
+        
     }
     
     render() {
@@ -73,6 +116,13 @@ export default class Quiz extends React.Component {
             return <div>Error: {this.state.error}</div>;
         } else if (!this.state.isLoaded) {
             return <div>Loading</div>;
+        } else if (this.state.alreadySubmitted) {
+            return (
+                <React.Fragment>
+                    <h1 className="quizTitle">{this.state.quiz.title}</h1>
+                    <Submitted config={this.config} result={this.state.result} hasFreeForm={this.state.hasFreeForm} />
+                </React.Fragment>
+            );
         } else {
             let questions = this.state.quiz.question.map((question) => {
                 let question_component = null;
