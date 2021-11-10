@@ -256,6 +256,7 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                     
                     let newCandidate = {
                         'name': '',
+                        'email': candidateEmails[i],
                         'quizzes': ''
                     };
                     
@@ -296,7 +297,17 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
                 } catch (error) {
                 }
                 
-                employer.candidates = candidates.concat(Object.values(values).filter((value) => candidates.indexOf(value) < 0));
+                let candidateData = [];
+                for (let candidateValue of values) {
+                    let candidateObjectValues = Object.values(candidateValue);
+                    if (!candidateObjectValues[0]) {
+                        let badCandidateError = new Error('Invalid candidate.');
+                        next(badCandidateError);
+                    }
+                    candidateData.push(candidateObjectValues[0]);
+                }
+                
+                employer.candidates = candidates.concat(candidateData.filter((value) => candidates.indexOf(value) < 0));
                 employer.candidates = JSON.stringify(employer.candidates);
                 
                 const employerKey = datastore.key(['Employer', parseInt(employer[datastore.KEY].id)]);
@@ -319,8 +330,18 @@ app.post('/employercandidates/:employerId', (req, res, next) => {
             } else {
                 const newEmployerKey = datastore.key('Employer');
                 
+                let candidateData = [];
+                for (let candidateValue of values) {
+                    let candidateObjectValues = Object.values(candidateValue);
+                    if (!candidateObjectValues[0]) {
+                        let badCandidateError = new Error('Invalid candidate.');
+                        next(badCandidateError);
+                    }
+                    candidateData.push(candidateObjectValues[0]);
+                }
+                
                 let newEmployer = {
-                    'candidates': JSON.stringify(Object.values(values)),
+                    'candidates': JSON.stringify(candidateData),
                     'employerId': req.params.employerId
                 };
                 
