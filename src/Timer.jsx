@@ -3,7 +3,18 @@ export default class Timer extends React.Component {
         super(props);
         this.config = props.config;
         
-        let timeSeconds = props.timer * 60;
+        let nowDate = Date.now();
+        
+        let timeElapsed = Date.now() - props.timer;
+        timeElapsed = timeElapsed / 1000;
+        
+        let timeSeconds = props.limit * 60;
+        
+        timeSeconds = timeSeconds - timeElapsed;
+        
+        if (timeSeconds < 0) {
+            timeSeconds = 0;
+        }
         
         this.state = {
             timeSeconds: timeSeconds,
@@ -32,7 +43,8 @@ export default class Timer extends React.Component {
     tick() {
         let timeSeconds = this.state.timeSeconds - 1;
         
-        if (timeSeconds === 0) {
+        if (timeSeconds <= 0) {
+            timeSeconds = 0;
             clearInterval(this.timerID);
         }
         
