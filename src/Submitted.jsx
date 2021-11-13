@@ -4,7 +4,6 @@ export default class Submitted extends React.Component {
     constructor(props) {
         super(props);
         this.config = props.config;
-        console.log(props);
         this.state = {
             credit: props.result.credit,
             points: props.result.points,
