@@ -1,4 +1,5 @@
 const config = require('./config/config');
+const cors = require("cors");
 const bodyParser = require('body-parser');
 const express = require('express');
 const path = require('path');
@@ -7,6 +8,7 @@ const mailgun = require('mailgun-js')({apiKey: config.mailgunApiKey, domain: con
 
 const app = express();
 
+app.use(cors());
 app.use(express.static('static'));
 app.use(express.static('dist'));
 app.use(bodyParser.urlencoded({extended: true}));
@@ -127,11 +129,10 @@ const sendEmail = (employerName, candidateName, candidateEmail, candidateId, qui
     }
     
     let testEmail = 'osuspqtest@gmail.com';
-    
 
     let emailData = {
         from: 'Software Programming Quiz <me@samples.mailgun.org>',
-        // to: employer.email,
+        // to: candidateEmail,
         to: testEmail,
         subject: 'Quiz submission',
         text: emailBody
@@ -170,16 +171,19 @@ app.get('/timer/:candidateId', (req, res, next) => {
 app.post('/timer/:candidateId', (req, res, next) => {
     const query = datastore.createQuery('Timer').filter('candidateId', '=', req.params.candidateId).limit(1);
     datastore.runQuery(query).then((result) => {
-        let [timer] = result;
-        if (timer.length) {
-            res.status(200).send("Timer already started.");
+        let [timers] = result;
+        if (timers.length) {
+            let [timer] = timers;
+            res.status(200).send(timer.timer.toString());
         } else {
             // no timer for candidate
             const newTimerKey = datastore.key('Timer');
             
+            let timeStamp = Date.now();
+            
             let newTimer = {
                 'candidateId': req.params.candidateId,
-                'timer': Date.now()
+                'timer': timeStamp
             };
             
             let newTimerEntity = {
@@ -190,7 +194,7 @@ app.post('/timer/:candidateId', (req, res, next) => {
             datastore.insert(newTimerEntity).then(
                 (insertSuccess) => {
                     // Timer inserted successfully.
-                    res.status(200).send("Success");
+                    res.status(200).send(timeStamp.toString());
                 },
                 (insertError) => {
                     next(insertError);
@@ -380,7 +384,7 @@ app.get('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res) 
 
 // handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res, next) => {
-    fetch(`${config.siteHost}/quiz/${req.params.quizId}`)
+    fetch(`${config.foreignHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
         (quizResult) => {
@@ -391,7 +395,7 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                     if (timers.length) {
                         let [timer] = timers;
                         let quizData = handleSubmission(req.body, quizResult);
-                        fetch(`${config.siteHost}/employer/${req.params.employerId}`)
+                        fetch(`${config.foreignHost}/employer/${req.params.employerId}`)
                             .then(employerRes => employerRes.json())
                             .then(
                                 (employerResult) => {
@@ -452,7 +456,7 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                                                     };
                                                     
                                                     try {
-                                                        // sendEmail(employerResult.name, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
+                                                        sendEmail(employerResult.name, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
                                                     } catch (mailError) {
                                                         next(mailError);
                                                     }
@@ -460,7 +464,7 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                                                     datastore.update(existingCandidateEntity).then(
                                                         (updateSuccess) => {
                                                             // Candidate updated successfully.
-                                                            res.status(200).sendFile(path.resolve(__dirname, 'view/submitted.html'));
+                                                            res.status(200).sendFile(path.resolve(__dirname, 'view/quiz.html'));
                                                         },
                                                         (updateError) => {
                                                             next(updateError);

@@ -78,27 +78,42 @@ export default class Quiz extends React.Component {
                         .then(
                             (result) => {
                                 this.setState({
-                                    isLoaded: true,
+                                    quizLoaded: true,
                                     quiz: result
                                 });
                             },
                             (error) => {
                                 this.setState({
-                                    isLoaded: true,
+                                    quizLoaded: true,
                                     error: error
                                 });
                             }
                         );
                     
-                    // start timer
-                    fetch(`/timer/${candidateId}`, {method: "POST", body: null})
-                        .then(
-                            (result) => {
-                            },
-                            (error) => {
-                                this.state.error = "Invalid timer"
-                            }
-                        );
+                    if (!this.state.alreadySubmitted) {
+                        // start timer
+                        fetch(`/timer/${candidateId}`, {method: "POST", body: null})
+                            .then(res => res.json())
+                            .then(
+                                (result) => {
+                                    this.setState({
+                                        timerLoaded: true,
+                                        timer: result
+                                    });
+                                },
+                                (error) => {
+                                    this.setState({
+                                        timerLoaded: true,
+                                        error: "Invalid timer"
+                                    });
+                                }
+                            );
+                    } else {
+                        this.setState({
+                            timerLoaded: true,
+                            timer: 0
+                        });
+                    }
                 },
                 (error) => {
                     this.setState({
@@ -107,14 +122,12 @@ export default class Quiz extends React.Component {
                     });
                 }
             );
-        
-        
     }
     
     render() {
         if (this.state.error) {
             return <div>Error: {this.state.error}</div>;
-        } else if (!this.state.isLoaded) {
+        } else if (!this.state.quizLoaded || !this.state.timerLoaded) {
             return <div>Loading</div>;
         } else if (this.state.alreadySubmitted) {
             return (
@@ -155,7 +168,7 @@ export default class Quiz extends React.Component {
             return (
                 <React.Fragment>
                     <h1 className="quizTitle">{this.state.quiz.title}</h1>
-                    <Timer config={this.config} timer={this.state.quiz.timeLimit} />
+                    <Timer config={this.config} timer={this.state.timer} limit={this.state.quiz.timeLimit} />
                     <form method="post" className="quiz">
                         <div className="questions">{questions}</div>
                         <Submit key="submitBtn" config={this.config} />
