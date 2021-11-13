@@ -13,7 +13,7 @@ export default class Quiz extends React.Component {
         this.config = props.config;
         this.state = {
             error: null,
-            isLoaded: false,
+            quizLoaded: false,
             quiz: {}
         }
     }
@@ -27,7 +27,6 @@ export default class Quiz extends React.Component {
             }
         } catch (error) {
             this.setState({
-                isLoaded: true,
                 error: error
             });
         }
@@ -47,7 +46,6 @@ export default class Quiz extends React.Component {
             }
         } catch (error) {
             this.setState({
-                isLoaded: true,
                 error: error
             });
         }
@@ -64,7 +62,6 @@ export default class Quiz extends React.Component {
                                     // quiz already submitted
                                     this.setState({
                                         alreadySubmitted: true,
-                                        isLoaded: true,
                                         result: quiz.result,
                                         hasFreeForm: quiz.hasFreeForm
                                     });
@@ -117,7 +114,6 @@ export default class Quiz extends React.Component {
                 },
                 (error) => {
                     this.setState({
-                        isLoaded: true,
                         error: error
                     });
                 }

@@ -120,11 +120,12 @@ const handleSubmission = (body, result) => {
     };
 }
 
-const sendEmail = (employerName, candidateName, candidateEmail, candidateId, quizId, hasFreeForm) => {
+const sendEmail = (employerName, employerId, candidateName, candidateEmail, candidateId, quizId, hasFreeForm) => {
     let emailBody = `${employerName}, ${candidateName} ${candidateEmail} has submitted a quiz.`;
     
     if (hasFreeForm) {
-        let evaluateLink = `${config.siteHost}/candidate/${candidateId}/quiz/${quizId}`;
+        let evaluateLink = `https://quiz-app-467.herokuapp.com/employer/${employerId}/quiz/${quizId}/candidate/${candidateId}`;
+        
         emailBody += ` Visit this link to evaluate their free form responses: ${evaluateLink}`;
     }
     
@@ -216,6 +217,40 @@ app.get('/candidate/:candidateId', (req, res, next) => {
             next(error);
         }
     );
+});
+
+// post candidate
+app.post('/candidate/:candidateId', (req, res, next) => {
+    const candidateKey = datastore.key(['Candidate', parseInt(req.params.candidateId)]);
+    
+    const candidateQuery = datastore.createQuery('Candidate').filter('__key__', '=', candidateKey).limit(1);
+    datastore.runQuery(candidateQuery).then((candidateResult) => {
+        let [candidates] = candidateResult;
+        if (candidates.length) {
+            let [candidate] = candidates;
+            const existingCandidateKey = datastore.key(['Candidate', parseInt(candidate[datastore.KEY].id)]);
+            
+            let existingCandidateEntity = {
+                key: existingCandidateKey,
+                excludeFromIndexes: ['quizzes'],
+                data: req.body,
+            };
+            
+            datastore.update(existingCandidateEntity).then(
+                (updateSuccess) => {
+                    // Candidate updated successfully.
+                    let msg = {msg: "Success"};
+                    res.status(200).json(msg);
+                },
+                (updateError) => {
+                    next(updateError);
+                }
+            );
+        } else {
+            let msg = {error: "Candidate does not exist."};
+            res.status(404).json(msg);
+        }
+    });
 });
 
 // get candidate ids for an employer
@@ -456,7 +491,7 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                                                     };
                                                     
                                                     try {
-                                                        sendEmail(employerResult.name, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
+                                                        sendEmail(employerResult.name, req.params.employerId, quizData.name, candidate.email, req.params.candidateId, req.params.quizId, quizData.hasFreeForm);
                                                     } catch (mailError) {
                                                         next(mailError);
                                                     }
