@@ -15,8 +15,8 @@ export default class TrueFalse extends React.Component {
             return <div>Error: {error.message}</div>;
         } else {
             return (
-                <div className="trueFalse">
-                    {this.question.question}
+                <div className="trueFalse border-top">
+                    <u>{this.question.question}</u>
                     <label>
                         <input type="radio" name={this.question.id} value="true" />
                         True

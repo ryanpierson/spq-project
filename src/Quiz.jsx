@@ -50,6 +50,8 @@ export default class Quiz extends React.Component {
             });
         }
         
+        this.candidateId = candidateId;
+        
         fetch(`/candidate/${candidateId}`)
             .then(res => res.json())
             .then(
@@ -88,23 +90,23 @@ export default class Quiz extends React.Component {
                         );
                     
                     if (!this.state.alreadySubmitted) {
-                        // start timer
-                        fetch(`/timer/${candidateId}`, {method: "POST", body: null})
-                            .then(res => res.json())
-                            .then(
-                                (result) => {
-                                    this.setState({
-                                        timerLoaded: true,
-                                        timer: result
-                                    });
-                                },
-                                (error) => {
-                                    this.setState({
-                                        timerLoaded: true,
-                                        error: "Invalid timer"
-                                    });
-                                }
-                            );
+                        // // start timer
+                        // fetch(`/timer/${candidateId}`, {method: "POST", body: null})
+                        //     .then(res => res.json())
+                        //     .then(
+                        //         (result) => {
+                        //             this.setState({
+                        //                 timerLoaded: true,
+                        //                 timer: result
+                        //             });
+                        //         },
+                        //         (error) => {
+                        //             this.setState({
+                        //                 timerLoaded: true,
+                        //                 error: "Invalid timer"
+                        //             });
+                        //         }
+                        //     );
                     } else {
                         this.setState({
                             timerLoaded: true,
@@ -121,10 +123,39 @@ export default class Quiz extends React.Component {
     }
     
     render() {
+        const startQuiz = () => {
+            if (!this.candidateId) {
+                return;
+            }
+            fetch(`/timer/${this.candidateId}`, {method: "POST", body: null})
+                .then(res => res.json())
+                .then(
+                    (result) => {
+                        this.setState({
+                            timerLoaded: true,
+                            timer: result
+                        });
+                    },
+                    (error) => {
+                        this.setState({
+                            timerLoaded: true,
+                            error: "Invalid timer"
+                        });
+                    }
+                );
+        }
+        
         if (this.state.error) {
             return <div>Error: {this.state.error}</div>;
-        } else if (!this.state.quizLoaded || !this.state.timerLoaded) {
+        } else if (!this.state.quizLoaded && !this.state.timerLoaded) {
             return <div>Loading</div>;
+        } else if (this.state.quizLoaded && !this.state.timerLoaded) {
+            return (
+                <div className="startQuiz">
+                    <h1>{this.state.quiz.title}</h1>
+                    <div onClick={startQuiz} className="btn btn-primary">Begin Quiz</div>
+                </div>
+            );
         } else if (this.state.alreadySubmitted) {
             return (
                 <React.Fragment>
@@ -156,8 +187,8 @@ export default class Quiz extends React.Component {
                 return question_component;
             });
             questions.push(
-                <div key="nameInput" className="nameContainer">
-                    <label htmlFor="candidateName">Enter your name:</label>
+                <div key="nameInput" className="nameContainer border-top">
+                    <u><label htmlFor="candidateName">Enter your name:</label></u>
                     <input type="text" id="candidateName" name="candidateName" minLength="1" maxLength="64" required />
                 </div>
             )

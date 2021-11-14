@@ -24,8 +24,8 @@ export default class MultipleChoice extends React.Component {
             });
             
             return (
-                <div className="checkAllThatApply">
-                    {this.question.question}
+                <div className="checkAllThatApply border-top">
+                    <u>{this.question.question}</u>
                     {choices}
                 </div>
             );

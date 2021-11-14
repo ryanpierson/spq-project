@@ -25,6 +25,7 @@
 
 .submitBtn {
     margin-left: 2rem;
+    margin-bottom: 2rem;
 }
 
 .submitBtn > input {
@@ -63,4 +64,28 @@
     display: block;
     width: 100%;
     max-width: 30rem;
+}
+
+.startQuiz {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.startQuiz h1 {
+    margin-bottom: 1rem;
+}
+
+#root label {
+    margin-bottom: 0;
+}
+
+.questions div {
+    padding-top: 1rem;
 }

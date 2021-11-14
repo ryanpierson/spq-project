@@ -16,7 +16,7 @@ export default class Submit extends React.Component {
         } else {
             return (
                 <div className="submitBtn">
-                    <input type="submit" value="Submit"></input>
+                    <input className="btn btn-primary" type="submit" value="Submit"></input>
                 </div>
             );
         }
