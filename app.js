@@ -419,6 +419,9 @@ app.get('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res) 
 
 // handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res, next) => {
+    let quizPath = `${config.foreignHost}/quiz/${req.params.quizId}`;
+    console.log("TEST");
+    console.log(quizPath);
     fetch(`${config.foreignHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
