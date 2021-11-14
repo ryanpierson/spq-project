@@ -419,9 +419,6 @@ app.get('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res) 
 
 // handle quiz submission
 app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res, next) => {
-    let quizPath = `${config.foreignHost}/quiz/${req.params.quizId}`;
-    console.log("TEST");
-    console.log(quizPath);
     fetch(`${config.foreignHost}/quiz/${req.params.quizId}`)
     .then(quizRes => quizRes.json())
     .then(
@@ -433,7 +430,7 @@ app.post('/employer/:employerId/quiz/:quizId/candidate/:candidateId', (req, res,
                     if (timers.length) {
                         let [timer] = timers;
                         let quizData = handleSubmission(req.body, quizResult);
-                        fetch(`${config.foreignHost}/employer/${req.params.employerId}`)
+                        fetch(`${config.foreignHost}/employee/${req.params.employerId}`)
                             .then(employerRes => employerRes.json())
                             .then(
                                 (employerResult) => {
