@@ -15,8 +15,8 @@ export default class FreeForm extends React.Component {
             return <div>Error: {error.message}</div>;
         } else {
             return (
-                <div className="freeForm">
-                    {this.question.question}
+                <div className="freeForm border-top">
+                    <u>{this.question.question}</u>
                     <textarea name={this.question.id}></textarea>
                 </div>
             );
