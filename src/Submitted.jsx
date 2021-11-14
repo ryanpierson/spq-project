@@ -18,7 +18,7 @@ export default class Submitted extends React.Component {
         } else if (this.state.hasFreeForm) {
             return (
                 <div className="submitted">
-                    <h2>This quiz has already been submitted.</h2>
+                    <h2>This quiz has been submitted successfully.</h2>
                     <h3>Current score:</h3>
                     <h3>{this.state.credit} / {this.state.points}</h3>
                 </div>
