@@ -129,12 +129,12 @@ const sendEmail = (employerName, employerId, candidateName, candidateEmail, cand
         emailBody += ` Visit this link to evaluate their free form responses: ${evaluateLink}`;
     }
     
-    let testEmail = 'osuspqtest@gmail.com';
+    // let testEmail = 'osuspqtest@gmail.com';
 
     let emailData = {
         from: 'Software Programming Quiz <me@samples.mailgun.org>',
-        // to: candidateEmail,
-        to: testEmail,
+        to: candidateEmail,
+        // to: testEmail,
         subject: 'Quiz submission',
         text: emailBody
     };
